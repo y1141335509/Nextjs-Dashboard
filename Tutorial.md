@@ -1233,6 +1233,109 @@ Partial Prerendering的好处在于，您不需要更改代码就可以使用它
 在下一章中，我们将介绍在获取数据时可能需要实现的两种常见模式：搜索和分页。
 
 
+## Chapter 11 - Adding Search and Pagination
+
+这章将会讲述：
+1. 如何使用Next.js APIs - `useSearchParams`, `usePathname`, 和`useRouter`这三个API
+2. 使用URL search params来实现search和pagination
+
+### Starting Code
+在开始之前我们先初始化一下代码。在`/dashboard/invoices/page.tsx`文件中，将下面代码直接复制并替换原有代码：
+```tsx
+// /app/dashboard/invoices/page.tsx
+import Pagination from '@/app/ui/invoices/pagination';
+import Search from '@/app/ui/search';
+import Table from '@/app/ui/invoices/table';
+import { CreateInvoice } from '@/app/ui/invoices/buttons';
+import { lusitana } from '@/app/ui/fonts';
+import { InvoicesTableSkeleton } from '@/app/ui/skeletons';
+import { Suspense } from 'react';
+ 
+export default async function Page() {
+  return (
+    <div className="w-full">
+      <div className="flex w-full items-center justify-between">
+        <h1 className={`${lusitana.className} text-2xl`}>Invoices</h1>
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-2 md:mt-8">
+        <Search placeholder="Search invoices..." />
+        <CreateInvoice />
+      </div>
+      {/*  <Suspense key={query + currentPage} fallback={<InvoicesTableSkeleton />}>
+        <Table query={query} currentPage={currentPage} />
+      </Suspense> */}
+      <div className="mt-5 flex w-full justify-center">
+        {/* <Pagination totalPages={totalPages} /> */}
+      </div>
+    </div>
+  );
+}
+```
+
+接下来我们将重点看一下：
+1. `<Search/>`让用户搜索特定的invoices
+2. `<Pagination/>`让用户能够在不同的invoice的页面之间navigate
+3. `<Table/>`能够显示invoices
+
+
+### 为什么需要用URL search param？
+如果您习惯于使用客户端状态，那么这种模式可能对你来说是新的。使用URL参数实现搜索有几个好处：
+
+1. Bookmarkable and shareable URLs：由于搜索参数在URL中，因此用户可以将应用程序的当前状态（包括搜索查询和过滤器）收藏为书签，以便将来参考或共享。
+2. Server-side Rendering：可以在服务器上直接使用URL参数来呈现初始状态，从而更容易处理服务器呈现。
+3. Analytics and Tracking：在URL中直接使用搜索查询和过滤器可以更容易地跟踪用户行为，而不需要额外的客户端逻辑。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
