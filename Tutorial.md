@@ -503,21 +503,116 @@ export async function GET() {
 ![alt](./public/markdown-tutorial-images/ch06-07.png "示意图7")
 
 
+## Chapter 7 - Fetching Data
+有了数据库之后，我们当然就希望从数据库中获取我们想要的数据，所以这章会讲到：
+1. 获取数据的几种方式：APIs, ORMs, SQL, etc.
+2. 如何使用Server Components来提高 在访问后端资源时 的安全性
+3. 什么是network waterfalls
+4. 如何通过JavaScript Pattern来实现 **parallel data fetching**
+
+
+### Choosing how to fetch data
+
+#### API Layer
+APIs是 App代码 与 数据库 之间的一个中间层。API常见的使用场景是：
+* 如果你使用了第三方的服务，且该服务有提供API
+* 如果你是从client side获取数据，则需要有一个在服务器上运行的API层，以避免向客户机公开数据库机密。
+
+在Next.js中，你可以用[Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers)来创建API endpoints。例如上面一章中提到的`localhost:3000/query/`就是一个API endpoint。
+
+#### Database queries
+在你要创建一个full-stack App的时候，你就需要写出 与你的数据库进行交互的 逻辑。对于 relational database，你可以使用SQL或者 [ORM](https://vercel.com/docs/storage)来给出交互逻辑。
+
+下面是几个你必须写出database queries的案例：
+* 当创建API endpoints的时候，你需要写出与你数据库进行交互的逻辑
+* 如果你使用的是React Server Component (能获取server端的数据)，你可以跳过API层，并直接对你的数据库进行查询，而不会有将你的数据库隐秘信息暴露给client端的风险。
 
 
 
+### Using Server Compoennts to fetch data
+Nexjt.js App默认上时使用`React Server Components`。使用`React Server Components`获取数据是比较新的一种方式，它的好处是：
+* `React Server Components`支持Javascript Promises，它针对异步式任务（例如data fetching）提供了原神的解决方案。你可以使用`async/await`语句，而不再需要使用`useEffect`， `useState`或者任何其他data fetching libraries了。
+* `React Server Components`是运行在server端上的，所以你可以将expensive的数据获取 和 expensive的逻辑 放在 server端，只需要将结果发送给client端。
+* 由于`React Server Components`是运行在server端上的，你可以直接对数据库进行查询，而不需要通过额外的API层。这可以节省你 写 和 维护 额外代码的成本。
 
 
+### Using SQL
+在该教程中，我们主要是通过`postgres.js`对数据库进行查询，原因是：
+* SQL是查询关系数据库的行业标准（例如，orm在底层生成SQL）。
+* 对SQL有基本的了解可以帮助您理解关系数据库的基础知识，使您能够将您的知识应用于其他工具。
+* SQL是通用的，允许您获取和操作特定的数据。
+* postgresjs库提供了防止SQL injection的保护。
+
+```ts
+// /app/lib/data.ts
+
+import postgres from 'postgres';
+
+const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
+
+// ...
+```
+`sql`可以在server端的任何地方进行调用，这与Server Component类似。
+
+### Fetching data for the dashboard overview page
+了解了获取数据的几种不同的方式之后，我们来看如何给dashboard的overview page获取数据。我们再`/app/dashboard/page.tsx`里面复制粘贴下面代码：
+```tsx
+// /app/dashboard/page.tsx
+import { Card } from '@/app/ui/dashboard/cards';
+import RevenueChart from '@/app/ui/dashboard/revenue-chart';
+import LatestInvoices from '@/app/ui/dashboard/latest-invoices';
+import { lusitana } from '@/app/ui/fonts';
+ 
+export default async function Page() {
+  return (
+    <main>
+      <h1 className={`${lusitana.className} mb-4 text-xl md:text-2xl`}>
+        Dashboard
+      </h1>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {/* <Card title="Collected" value={totalPaidInvoices} type="collected" /> */}
+        {/* <Card title="Pending" value={totalPendingInvoices} type="pending" /> */}
+        {/* <Card title="Total Invoices" value={numberOfInvoices} type="invoices" /> */}
+        {/* <Card
+          title="Total Customers"
+          value={numberOfCustomers}
+          type="customers"
+        /> */}
+      </div>
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-4 lg:grid-cols-8">
+        {/* <RevenueChart revenue={revenue}  /> */}
+        {/* <LatestInvoices latestInvoices={latestInvoices} /> */}
+      </div>
+    </main>
+  );
+}
+
+```
+
+该代码是故意被注释掉的。
+* `page`是一个async server component。它使你能够使用`await`来获取数据
+* 此外还有3个components来接收数据：`<Card>`, `<RevenueChart>`, `<LatestInvoices>`。他们目前也是被注释掉的
 
 
-
-
-
-
-
-
-
-
+#### Fetching data for `<RevenueChart />`
+为了给`<RevenueChart />`获取数据，需要从`data.ts`导入`fetchRevenue`函数，然后再你的组件中进行调用。如下：
+```tsx
+// /app/dashboard/page.tsx
+import { Card } from '@/app/ui/dashboard/cards.tsx';
+import RevenueChart from '@/app/ui/dashboard/revenue-chart';
+import LatestInvoices from '@/app/ui/dashboard/latest-invoices';
+import { lusitana } from '@/app/ui/fonts';
+import { fetchRevenue } from '@/app/lib/data';
+ 
+export default async function Page() {
+  const revenue = await fetchRevenue();
+  // ...
+}
+```
+然后：
+1. 去掉`<RevenueChart />`组件的注释
+2. 去到组件文件`/app/ui/dashboard/revenue-chart.tsx`，然后去掉里面的注释行。
+3. 刷新`localhost:3000/dashboard`，你会看到一个使用了`revenue`数据的图表
 
 
 
