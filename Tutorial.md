@@ -414,16 +414,34 @@ export default function NavLinks() {
 ## Chapter 6 - Setting Up Your Database
 该教程将会使用PostgreSQL作为数据库案例。你可以在[Vercel's marketplace integrations](https://vercel.com/marketplace?category=storage)里面找到。当然如果你有自己prefer的数据库的话也可以使用你自己喜欢的数据库。
 
+这章中，我们会讨论：
+1. 如何将当前项目push到Github上
+2. 设置Vercel账号，然后将其与你的GitHub repo连接，从而方便你实时查看网站的preview和deployment
+3. 创建和建立从你的项目到数据库之间的连接
+4. 给数据库发送初始化数据
+
+### 创建GitHub repo：
+就简单的follow [这篇官方教程](https://docs.github.com/en/repositories/creating-and-managing-repositories/quickstart-for-repositories)来创建GitHub repo即可
 
 
+### 然后创建一个Vercel账号
+选择免费的hobby plan。推荐在创建的过程中建立起Vercel与GitHub帐号之间的联系。最后结果如下图：
+![alt](./public/markdown-tutorial-images/ch06-01.png "示意图")
+
+<span style="color: cyan">这样做的好处就是你可以每次git push之后，直接看到公开的网站更新，而不是只能在本地查看</span>。另外要注意的是，这个GitHub repo必须是 public的才能看到。
+
+### 创建一个Postgres 数据库
 
 
+如下图，我们在Storage下面找到数据库。你可以用Neon或者Supabase都可以。
+![alt](./public/markdown-tutorial-images/ch06-02.png "示意图2")
 
+![alt](./public/markdown-tutorial-images/ch06-03.png "示意图3")
 
+建立连接之后，找到`.env.local`页面，点击**Show secret**和**Copy Snippet**。确保你复制了这些代码
+![alt](./public/markdown-tutorial-images/ch06-04.png "示意图4")
 
-
-
-
+> ⚠️另外需要注意的是，你最好去到`.gitignore`文件下面，确保`.env`文件被添加到`.gitignore`下面，避免重要信息泄漏。
 
 
 
