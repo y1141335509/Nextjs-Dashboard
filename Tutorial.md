@@ -443,13 +443,17 @@ export default function NavLinks() {
 
 > ⚠️另外需要注意的是，你最好去到`.gitignore`文件下面，确保`.env`文件被添加到`.gitignore`下面，避免重要信息泄漏。
 
+最后，将复制的代码放到`.env.example`文件中。最后将该文件重命名为`.env`
 
+### Seed your database
 
+有了数据库之后，我们创建一个种子来初始化数据。我们包含了一个可以在浏览器中访问的API，它将运行一个种子脚本，用一组初始数据填充数据库。
 
+该脚本使用SQL创建表，并从`placeholder-data.ts`文件中中获取数据。在创建它们之后填充它们。
 
+确保您的本地开发服务器正在运行`pnpm run dev`，并在浏览器中导航到`localhost:3000/seed`。完成后，您将在浏览器中看到一条消息"Database seeded successfully"。完成后，您可以删除此文件。
 
-
-
+![alt](./public/markdown-tutorial-images/ch06-05.png "示意图5")
 
 
 
