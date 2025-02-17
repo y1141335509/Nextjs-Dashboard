@@ -827,28 +827,368 @@ export default function Loading() {
 
 Route groups可以让你将文件整理成logical groups而不影响URL path structure。当你创建一个新的 名字中带有() 的文件夹，改名字将不会包含在URL path中。也就是说`/dashboard/(overview)/page.tsx`变成了`/dashboard`.
 
+这里，您使用route group来确保`loading.tsx`仅适用于dashboard 的overview页面。然而，你也可以使用route groups将你的App分成几个部分（例如(marketing) routes 和 (shop) routes 等），或者在更大的应用程序中按团队划分。
+
+### Streaming a component
+
+到目前为止，你已经将一整个页面做成streaming的了。但是你也可以使用React Suspense更细粒度和 更stream specific的组件。
+
+Suspense允许你推迟渲染应用程序的某些部分，直到满足某些条件（例如，数据被加载）。您可以将动态组件封装在Suspense中。然后，向它传递一个fallback组件，以便在动态组件加载时显示。
+
+如果您还记得slow data fetch `fetchRevenue()`，那么这个请求就是使整个页面变慢的请求。不用阻塞整个页面，您可以使用Suspense只对该组件流式传输，并立即显示页面UI的其余部分。
+
+要做到这一点，你需要将数据获取移动到组件中，让我们更新代码，看看会是什么样子：
+
+删除`/dashboard/(overview)/page.tsx`中`fetchRevenue()`及其数据的所有实例：
+```tsx
+// /app/dashboard/(overview)/page.tsx
+import { Card } from '@/app/ui/dashboard/cards';
+import RevenueChart from '@/app/ui/dashboard/revenue-chart';
+import LatestInvoices from '@/app/ui/dashboard/latest-invoices';
+import { lusitana } from '@/app/ui/fonts';
+import { fetchLatestInvoices, fetchCardData } from '@/app/lib/data'; // remove fetchRevenue
+ 
+export default async function Page() {
+  const revenue = await fetchRevenue() // delete this line
+  const latestInvoices = await fetchLatestInvoices();
+  const {
+    numberOfInvoices,
+    numberOfCustomers,
+    totalPaidInvoices,
+    totalPendingInvoices,
+  } = await fetchCardData();
+ 
+  return (
+    // ...
+  );
+}
+```
+
+接着，导入`<Suspense>`。用它将`<RevenueChart />`包裹。你可以给`<Suspense>`传入一个fallback组件`<RevenueChartSkeleton>`。如下：
+```tsx
+// /app/dashboard/(overview)/page.tsx
+import { Card } from '@/app/ui/dashboard/cards';
+import RevenueChart from '@/app/ui/dashboard/revenue-chart';
+import LatestInvoices from '@/app/ui/dashboard/latest-invoices';
+import { lusitana } from '@/app/ui/fonts';
+import { fetchLatestInvoices, fetchCardData } from '@/app/lib/data';
+import { Suspense } from 'react';                               // add this line
+import { RevenueChartSkeleton } from '@/app/ui/skeletons';      // add this line
+ 
+export default async function Page() {
+  const latestInvoices = await fetchLatestInvoices();
+  const {
+    numberOfInvoices,
+    numberOfCustomers,
+    totalPaidInvoices,
+    totalPendingInvoices,
+  } = await fetchCardData();
+ 
+  return (
+    <main>
+      <h1 className={`${lusitana.className} mb-4 text-xl md:text-2xl`}>
+        Dashboard
+      </h1>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <Card title="Collected" value={totalPaidInvoices} type="collected" />
+        <Card title="Pending" value={totalPendingInvoices} type="pending" />
+        <Card title="Total Invoices" value={numberOfInvoices} type="invoices" />
+        <Card
+          title="Total Customers"
+          value={numberOfCustomers}
+          type="customers"
+        />
+      </div>
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-4 lg:grid-cols-8">
+        <Suspense fallback={<RevenueChartSkeleton />}>                    {/* add this line */}
+          <RevenueChart />                                                {/* add this line */}
+        </Suspense>                                                       {/* add this line */}
+        <LatestInvoices latestInvoices={latestInvoices} />
+      </div>
+    </main>
+  );
+}
+```
+
+最后更新`<RevenueChart>`组件来获取数据 并 将传给它的prop删除：
+```tsx
+// /app/ui/dashboard/revenue-chart.tsx
+import { generateYAxis } from '@/app/lib/utils';
+import { CalendarIcon } from '@heroicons/react/24/outline';
+import { lusitana } from '@/app/ui/fonts';
+import { fetchRevenue } from '@/app/lib/data';
+ 
+// ...
+ 
+export default async function RevenueChart() { // Make component async, remove the props
+  const revenue = await fetchRevenue(); // Fetch data inside the component
+ 
+  const chartHeight = 350;
+  const { yAxisLabels, topLabel } = generateYAxis(revenue);
+ 
+  if (!revenue || revenue.length === 0) {
+    return <p className="mt-4 text-gray-400">No data available.</p>;
+  }
+ 
+  return (
+    // ...
+  );
+}
+```
+改动后的dashboard如下：
+![alt](./public/markdown-tutorial-images/ch09-05.png "示意图5")
+
+### Streaming `<LatestInvoices>`
+```tsx
+// /app/dashboard/(overview)/page.tsx
+import { Card } from '@/app/ui/dashboard/cards';
+import RevenueChart from '@/app/ui/dashboard/revenue-chart';
+import LatestInvoices from '@/app/ui/dashboard/latest-invoices';
+import { lusitana } from '@/app/ui/fonts';
+import { fetchLatestInvoices, fetchCardData } from '@/app/lib/data';
+import { Suspense } from 'react';
+import { RevenueChartSkeleton, LatestInvoicesSkeleton } from '@/app/ui/skeletons';
+ 
+export default async function Page() {
+  const latestInvoices = await fetchLatestInvoices();
+  const {
+    numberOfInvoices,
+    numberOfCustomers,
+    totalPaidInvoices,
+    totalPendingInvoices,
+  } = await fetchCardData();
+ 
+  return (
+    <main>
+      <h1 className={`${lusitana.className} mb-4 text-xl md:text-2xl`}>
+        Dashboard
+      </h1>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <Card title="Collected" value={totalPaidInvoices} type="collected" />
+        <Card title="Pending" value={totalPendingInvoices} type="pending" />
+        <Card title="Total Invoices" value={numberOfInvoices} type="invoices" />
+        <Card
+          title="Total Customers"
+          value={numberOfCustomers}
+          type="customers"
+        />
+      </div>
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-4 lg:grid-cols-8">
+        <Suspense fallback={<RevenueChartSkeleton />}>
+          <RevenueChart />
+        </Suspense>
+        <Suspense fallback={<LatestInvoicesSkeleton />}>
+          <LatestInvoices />
+        </Suspense>
+        
+      </div>
+    </main>
+  );
+}
+```
+
+```tsx
+// /app/ui/dashboard/latest-invoices.tsx
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import clsx from 'clsx';
+import Image from 'next/image';
+import { lusitana } from '@/app/ui/fonts';
+import { LatestInvoice } from '@/app/lib/definitions';
+import { fetchLatestInvoices } from '@/app/lib/data';
+
+export default async function LatestInvoices() {    // removed props
+  const latestInvoices = await fetchLatestInvoices();
+
+  return (
+    <div className="flex w-full flex-col md:col-span-4">
+      <h2 className={`${lusitana.className} mb-4 text-xl md:text-2xl`}>
+        Latest Invoices
+      </h2>
+      <div className="flex grow flex-col justify-between rounded-xl bg-gray-50 p-4">
+        {/* NOTE: Uncomment this code in Chapter 7 */}
+
+        <div className="bg-white px-6">
+          {latestInvoices.map((invoice, i) => {
+            return (
+              <div
+                key={invoice.id}
+                className={clsx(
+                  'flex flex-row items-center justify-between py-4',
+                  {
+                    'border-t': i !== 0,
+                  },
+                )}
+              >
+                <div className="flex items-center">
+                  <Image
+                    src={invoice.image_url}
+                    alt={`${invoice.name}'s profile picture`}
+                    className="mr-4 rounded-full"
+                    width={32}
+                    height={32}
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold md:text-base">
+                      {invoice.name}
+                    </p>
+                    <p className="hidden text-sm text-gray-500 sm:block">
+                      {invoice.email}
+                    </p>
+                  </div>
+                </div>
+                <p
+                  className={`${lusitana.className} truncate text-sm font-medium md:text-base`}
+                >
+                  {invoice.amount}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex items-center pb-2 pt-6">
+          <ArrowPathIcon className="h-5 w-5 text-gray-500" />
+          <h3 className="ml-2 text-sm text-gray-500 ">Updated just now</h3>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
 
 
+### Grouping components
+最后我们要将`<Card>`组件也包裹在`<Suspense>`中。您可以为每个单独的card获取数据，但这可能会导致卡加载时有一个*popping*效果，这可能会给用户带来视觉上的不和谐。
+
+那么，你会如何解决这个问题呢？
+
+要创建更多的交错效果，可以使用包装器组件对卡片进行分组。这意味着静态的`<SideNav/>`将首先显示，然后是card，等等。
+
+在你的`loading.tsx`文件:
+1. 删除`<Card>`组件。
+2. 删除`fetchCardData()`函数。
+3. 导入名为`<CardWrapper />`的新wrapper组件。
+4. 导入一个名为`<CardsSkeleton />`的新skeleton组件。
+5. 将`<CardWrapper />`包裹在`<Suspense>`中。
+
+```tsx
+// /app/dashboard/(overview)/page.tsx
+import CardWrapper from '@/app/ui/dashboard/cards';
+// ...
+import {
+  RevenueChartSkeleton,
+  LatestInvoicesSkeleton,
+  CardsSkeleton,
+} from '@/app/ui/skeletons';
+ 
+export default async function Page() {
+  return (
+    <main>
+      <h1 className={`${lusitana.className} mb-4 text-xl md:text-2xl`}>
+        Dashboard
+      </h1>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <Suspense fallback={<CardsSkeleton />}>
+          <CardWrapper />
+        </Suspense>
+      </div>
+      // ...
+    </main>
+  );
+}
+```
+
+然后在`/app/ui/dashboard/cards.tsx`中导入`fetchCardData()`方法。然后在`<CardWrapper />`中调用。如下：
+```tsx
+// /app/ui/dashboard/cards.tsx
+// ...
+import { fetchCardData } from '@/app/lib/data';
+ 
+// ...
+ 
+export default async function CardWrapper() {
+  const {
+    numberOfInvoices,
+    numberOfCustomers,
+    totalPaidInvoices,
+    totalPendingInvoices,
+  } = await fetchCardData();
+ 
+  return (
+    <>
+      <Card title="Collected" value={totalPaidInvoices} type="collected" />
+      <Card title="Pending" value={totalPendingInvoices} type="pending" />
+      <Card title="Total Invoices" value={numberOfInvoices} type="invoices" />
+      <Card
+        title="Total Customers"
+        value={numberOfCustomers}
+        type="customers"
+      />
+    </>
+  );
+}
+```
+刷新页面，你会看到所有组件都在dashboard上了。
+
+### Decide where to place your Suspense boundaries
+这取决于下面几件事：
+1. 您希望用户如何体验流媒体页面。
+2. 你想优先考虑哪些内容。
+3. 如果组件依赖于数据获取。
+看看你的仪表盘页面，有没有什么是你会做得不同的？
+
+别担心。没有一个正确的答案。
+* 你可以流式传输**整个页面**，就像我们在`loading.tsx`中做的那样……但是，如果其中一个组件的数据获取速度较慢，那么这可能会导致较长的加载时间。
+* 你可以单独流式传输**每个组件**……但这可能会导致UI在准备就绪时*弹出屏幕*。
+* 您还可以通过流式传输**页面部分**来创建*交错效果* (staggered effect)。但是您需要创建包装器组件。
+设置悬念边界的位置取决于应用程序。一般来说，最好的做法是将数据获取移到需要它的组件，然后将这些组件封装在`<Suspense>`组件中。但是，如果应用程序需要的话，流式传输部分或整个页面并没有什么问题。
 
 
+## Partial Prerendering (PPR)
+在本章中，让我们学习如何将静态渲染，动态渲染和流在相同的路由中与部分预渲染（PPR）结合起来。
+
+安装Next.js的canary：
+```bash
+pnpm install next@canary
+```
+这章将讲述：
+1. 什么是Partial Prerendering
+2. Partial Prerendering的工作原理
 
 
+### Static vs. Dynamic Routes
+对于今天构建的大多数web应用程序，你要么为整个应用程序选择静态和动态渲染，要么为特定的路由选择。在Next.js中，如果你在路由中调用一个动态函数（比如查询数据库），整个路由就会变成动态的。
+
+然而，大多数路由并不是完全静态或动态的。例如，考虑一个电子商务网站。您可能希望静态地呈现大部分产品信息页面，但也可能希望动态地获取用户的购物车和推荐产品，这允许您向用户显示个性化的内容。
+
+回到仪表板页面，您认为哪些组件是静态的，哪些是动态的？
+
+一旦你准备好了，点击下面的按钮，看看我们将如何分割仪表板路由：
+![alt](./public/markdown-tutorial-images/ch10-01.png "示意图1")
+
+* `<SideNav>`组件不依赖于数据，也不是个性化给用户的，所以它是static的
+* 所有在`<Page>`中的组件，由于它们依赖于数据，且将会被个性化给用户，所以它们是动态的。
 
 
+### 什么是Partial Prerendering？
+Next.js 14引入了实验版本的Partial Prerendering
+![alt](./public/markdown-tutorial-images/ch10-02.png "示意图2")
+当用户访问一个路由的时候：
+* 一个包含 navbar和产品信息的静态路由壳(static route shell)会被呈现给用户
+* 这个壳子留下了一些洞，其中动态内容（如购物车和推荐产品）将异步加载。
+* 异步洞是并行流，减少了页面的总体加载时间。
+
+这些所谓的“洞”就是动态内容将异步加载的位置
 
 
+### Partial Prerendering的工作原理
 
+部分预渲染使用React的 Suspense（你在前一章学过）来延迟渲染部分应用程序，直到满足某些条件（例如数据加载）。
 
+Suspense fallback与静态内容一起嵌入到初始HTML文件中。在构建时（或在重新验证期间），将预呈现静态内容以创建静态shell。动态内容的呈现被**延迟**到用户请求路由时。
 
+在悬念中包装组件不会使组件本身动态，而是将悬念用作静态代码和动态代码之间的边界。
 
-
-
-
-
-
-
-
-
+让我们看看如何在仪表板路由中实现PPR。
 
 
 
