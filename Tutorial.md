@@ -461,6 +461,75 @@ export default function NavLinks() {
 
 
 
+### Executing Queries
+这里我们使用另一个Router Handler `app/query/route.ts`来查询数据库。在该文件中你会找到一个叫`listInvoices()`的函数，该函数中有如下一段SQL语句：
+```sql
+-- /app/query/route.ts
+SELECT invoices.amount, customers.name
+FROM invoices
+JOIN customersON invoices.customer_id = customers.id
+WHERE invoices.amount = 666;
+```
+将该文件的注释去掉后，然后去掉`Response.json()`代码块。然后去到`localhost:3000/query`下面，你就能看到一个invoice的`amount`和`name`的值被返回了。如下：
+```tsx
+import postgres from 'postgres';
+
+const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
+
+async function listInvoices() {
+	const data = await sql`
+    SELECT invoices.amount, customers.name
+    FROM invoices
+    JOIN customers ON invoices.customer_id = customers.id
+    WHERE invoices.amount = 666;
+  `;
+
+	return data;
+}
+
+export async function GET() {
+  // return Response.json({
+  //   message:
+  //     'Uncomment this file and remove this line. You can delete this file when you are finished.',
+  // });
+  try {
+  	return Response.json(await listInvoices());
+  } catch (error) {
+  	return Response.json({ error }, { status: 500 });
+  }
+}
+```
+
+![alt](./public/markdown-tutorial-images/ch06-07.png "示意图7")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
