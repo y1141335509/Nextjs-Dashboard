@@ -615,7 +615,40 @@ export default async function Page() {
 3. 刷新`localhost:3000/dashboard`，你会看到一个使用了`revenue`数据的图表
 
 
+#### Fetching data for `<LatestInvoices />`
+对于`<LatestInvoices />`组件，我们需要拿到最近的5个invoices，然后以时间序排序。
 
+首先要先拿到所有的invoices，然后按照时间序排序。此时我们可以不通过Javascript，而是通过`data.ts`文件中的SQL来进行查询，如下：
+```ts
+// /app/lib/data.ts
+// Fetch the last 5 invoices, sorted by date
+const data = await sql<LatestInvoiceRaw[]>`
+  SELECT invoices.amount, customers.name, customers.image_url, customers.email
+  FROM invoices
+  JOIN customers ON invoices.customer_id = customers.id
+  ORDER BY invoices.date DESC
+  LIMIT 5`;
+```
+
+然后去到你的`/app/dashboard/page.tsx`，进行如下改动：
+```tsx
+import { Card } from '@/app/ui/dashboard/cards';
+import RevenueChart from '@/app/ui/dashboard/revenue-chart';
+import LatestInvoices from '@/app/ui/dashboard/latest-invoices';
+import { lusitana } from '@/app/ui/fonts';
+import { fetchRevenue, fetchLatestInvoices } from '@/app/lib/data';
+ 
+export default async function Page() {
+  const revenue = await fetchRevenue();
+  const latestInvoices = await fetchLatestInvoices();
+  // ...
+}
+```
+
+然后我们去掉`<LatestInvoices />`组件的注释，然后再去掉`/app/ui/dashboard/latest-invoices.tsx`中的注释。之后你会发现最近5笔invoices按照时间序被列出来了。
+
+
+#### Fetch data for the `<Card>` component
 
 
 
