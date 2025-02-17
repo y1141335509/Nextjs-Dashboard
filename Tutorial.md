@@ -649,6 +649,75 @@ export default async function Page() {
 
 
 #### Fetch data for the `<Card>` component
+与上面两个类似（不多赘述）。但需要注意的两点是：
+1. 无意间，数据请求之间会block，从而形成了所谓的**request waterfall**
+2. 默认上， Next.js会提前 render 路由 来提升性能。这称为**Static Rendering**。所以如果你的数据发生了变动，该变动不会被显示在你的dashboard上。
+
+### 什么是Waterfalls？
+它指的是一个序列的网络(a sequence of network requests)请求，且每个请求的完成都取决于它之前的那个请求。在数据获取的情况下，每个请求只有在 前一个请求完成了的情况下才能开始。
+![alt](./public/markdown-tutorial-images/ch07-01.png "示意图1")
+
+下面案例说明了，我们需要等到`fetchRevenue()`的完成，之后才能开始执行`fetchLatestInvoices()`，以此类推。
+```tsx
+// /app/dashboard/page.tsx
+const revenue = await fetchRevenue();
+const latestInvoices = await fetchLatestInvoices();   // wait for fetchRevenue() to complete
+const {
+  numberOfInvoices,
+  numberOfCustomers,
+  totalPaidInvoices,
+  totalPendingInvoices,
+} = await fetchCardData();      // wait for fetchLatestInvoices() to complete
+```
+这种情况不一定是坏事。有时候，你可能反倒需要waterfalls的出现。例如：你可能需要先获取一个用户的ID和profile信息，然后你才能处理该用户的 好友列表。这种情况下你就希望waterfalls的出现。当然，waterfalls是会影响到App的性能
+
+
+### Parallel Data Fetching
+常见的避免waterfalls的方法就是通过<span style="color:cyan">Parallel</span>的方式将所有需要的数据同时进行初始化。
+
+在Javascript中你可以使用`Promise.all()`或者`Promise.allSettled()`方法将所有promises同时进行初始化。例如，我们可以在`fetchCardData()`函数中使用`Promise.all()`：
+```ts
+// /app/lib/data.ts
+export async function fetchCardData() {
+  try {
+    const invoiceCountPromise = sql'SELECT COUNT(*) FROM invoices';
+    const customerCountPromise = sql'SELECT COUNT(*) FROM customers';
+    const invoiceStatusPromise = sql'SELECT
+          SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) AS "paid",
+          SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) AS "pending"
+          FROM invoices;
+
+    const data = await Promise.all([
+      invoiceCountPromise,
+      customerCountPromise,
+      invoiceStatusPromise,
+    ]);
+    // ...
+  }
+}
+```
+这样写的好处是：
+* 你可以同时开始所有的data fetch任务。这样比waterfalls的情况更省时
+* 使用的是原生Javascript pattern，意味着这可以被应用到任何框架或库中。
+
+但是缺点是：
+* 它只依赖于Javascript pattern。如果某一个data fetch明显要慢于其他的data fetches怎么办？
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
