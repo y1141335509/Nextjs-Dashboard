@@ -767,6 +767,72 @@ Data fetch completed after 3 seconds.
 
 
 
+## Chapter 9 - Streaming
+这章中，我们会讲述：
+1. 什么是streaming，以及你什么时候需要它
+2. 如何通过`loading.tsx`和`Suspense`来实现streaming
+3. 什么是loading skeletons
+4. 什么是Next.js Route Groups，以及你什么时候需要它们
+5. 在App中如何界定React Suspense的边界
+
+### What is Streaming?
+它是一种数据传输及时，让你能够将数据切分成小块，同时一点点将它们从server端 传给 client端。通过streaming，你可以避免slow data requests阻碍你整个页面的加载
+![alt](./public/markdown-tutorial-images/ch09-01.png "示意图1")
+streaming 在React的组件模型中非常好用，因为每个组件都类似于一个小块。在Next.js中使用streaming有两种方式：
+1. 在page 层面，使用`loading.tsx`文件（这会为你创建`<Suspense>`）
+2. 在组件 层面， 通过`<Suspense>`实现更加granular 的控制
+
+### Streaming a whole page with `loading.tsx` file
+在`/app/dashboard`文件夹下面创建`loading.tsx`文件：
+```tsx
+// /app/dashboard/loading.tsx
+export default function Loading() {
+  return <div>Loading... </div>;
+}
+```
+你会发现，你的`localhost:3000/dashboard`页面先是 loading... 了一会，然后才出现dashboard的内容。
+![alt](./public/markdown-tutorial-images/ch09-02.png "示意图2")
+这是因为：
+1. `loading.tsx`是一个特殊的Next.js文件，建立在React Suspense之上。它允许您创建备用UI，以便在页面内容加载时作为替换显示。
+2. 由于`<SideNav>`是静态的，因此立即显示。在加载动态内容时，用户可以与`<SideNav>`进行交互。
+3. 用户不必等待页面加载完成后再导航（这被称为可中断导航）。
+恭喜你!您刚刚实现了流。但我们可以做更多来改善用户体验。让我们展示一个加载骨架，而不是`Loading…`文本。
+
+
+### Adding loading skeletons
+loading skeleton是一个简化版的你的 UI。许多网站都会使用它们最为一个placeholder（或者fallback），来告诉用户网页内容正在加载中。任何被添加进`loading.tsx`的UI都会被嵌入 并作为 该静态文件的一部分，且会被先发送。接着，剩下的动态内容会被通过 “流”的方式发送给client端。
+
+在你的`loading.tsx`文件中，导入一个`<DashboardSkeleton>`的组件：
+```tsx
+// /app/dashboard/loading.tsx
+import DashboardSkeleton from '@/app/ui/skeletons';
+
+export default function Loading() {
+  return <DashboardSkeleton />;
+}
+```
+再去到`localhost:3000/dashboard`，刷新。你会看到如下图所示：
+![alt](./public/markdown-tutorial-images/ch09-03.png "示意图3")
+
+
+### Fix the loading skeleton bug with route groups
+现在你的loading skeleton可以被应用在invoices上了。
+
+由于`loading.tsx`位于`/invoices/page.tsx`和`/customers/page.tsx`文件的上一层路径下，所以它会被用自动应用在`/invoices/page.tsx`和`/customers/page.tsx`上。
+
+现在我们用[Route Groups](https://nextjs.org/docs/app/building-your-application/routing/route-groups)来进行改动。我们在dashboard文件夹下面创建一个名为`/(overview)`的文件夹。然后将`loading.tsx`和`page.tsx`文件放在该文件夹下：
+![alt](./public/markdown-tutorial-images/ch09-04.png "示意图4")
+
+现在`loading.tsx`文件将只能用在dashboard overview页面上。
+
+Route groups可以让你将文件整理成logical groups而不影响URL path structure。当你创建一个新的 名字中带有() 的文件夹，改名字将不会包含在URL path中。也就是说`/dashboard/(overview)/page.tsx`变成了`/dashboard`.
+
+
+
+
+
+
+
 
 
 
