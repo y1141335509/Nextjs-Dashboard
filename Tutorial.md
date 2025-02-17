@@ -703,12 +703,57 @@ export async function fetchCardData() {
 但是缺点是：
 * 它只依赖于Javascript pattern。如果某一个data fetch明显要慢于其他的data fetches怎么办？
 
+## Chapter 8 - Static and Dynamic Rendering
+对于前一章所以到的数据获取的方式，我们提到了该方式存在的两个缺陷：
+1. data requests会无意间造成waterfalls
+2. dashboard目前是静态的，意味着任何数据更新不会实时反映在App的dashboard上。
+
+这一章中我们将：
+1. 了解什么是static rendering，并且了解如何提高App的性能
+2. 了解什么是dynamic rendering，以及什么时候该使用它
+3. 让我们的dashboard变得dynamic的方法
+4. 模拟一个缓慢的data fetch，来看看会发生什么
+
+### Static Rendering
+静态渲染下，数据的获取和渲染发生在server端 的 build time（也就是你deploy的时候） 或[revalidating data](https://nextjs.org/docs/app/building-your-application/data-fetching/fetching#revalidating-data)的时候
+
+任何时候，当一个用户访问你的App，都会给用户提供缓存过的结果。使用static rendering有几个好处：
+* Faster websites - 当部署到像Vercel这样的平台时，预渲染的内容可以被缓存和全局分发。这确保了世界各地的用户可以更快速、更可靠地访问您网站的内容。
+* Reduced Server Load - 因为内容是缓存的，所以服务器不必为每个用户请求动态生成内容。这可以降低计算成本。
+* SEO - 预呈现的内容更容易被搜索引擎爬虫索引，因为当页面加载时内容已经可用。这可以提高搜索引擎排名。
+
+Static rendering对于没有数据的UI 或者 用户之间共享数据 的网站非常有用。常见的是 static blog post 或者是一个 产品页。但对于 dashboard，尤其是有个人化的 dashboard 来说就非常不适用。
 
 
+### Dynamic Rendering
+在动态渲染下，网页内容是在 server端 每个用户在 request time 进行渲染的（也就是当用户访问网页的时候就渲染）。它的好处是：
+* Real-time Data - 动态渲染下，你的App能快速展示实时数据。
+* User-Specific Content - 着让你的App更容易提供个性化的内容，例如dashboard，profile等等
+* Request Time Information - 动态呈现允许您访问仅在请求时才知道的信息，例如cookie或URL搜索参数。
 
+## Simulate a Slow Data Fetch
+我们目前的dashboard是动态渲染的，但是如果某一个 数据请求 的速度 明显慢于其他所有的data fetches怎么办？
 
+我们来模拟一个 slow data fetch如下：
+```ts
+// /app/lib/data.ts
+export async function fetchRevenue() {
+  try {
+    // we artifically delay a response for demo purposes.
+    // don't do this in production
+    console.log('fetching revenue data... ');
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
+    const data = await sql<Revenue[]>'SELECT * FROM revenue';
 
+    console.log('Data fetch completed after 3 seconds');
+
+    return data;
+  } catch (error) {
+    console.error('database error: ', error);
+    throw new Error('failed to fetch revenue data');
+  }
+}
 
 
 
