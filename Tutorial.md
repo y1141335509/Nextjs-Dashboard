@@ -1191,7 +1191,35 @@ Suspense fallback与静态内容一起嵌入到初始HTML文件中。在构建�
 让我们看看如何在仪表板路由中实现PPR。
 
 
+### 使用Partial Prerendering
+首先要在`next.config.mjs`文件中添加[`ppr`](https://nextjs.org/docs/app/api-reference/config/next-config-js/ppr)选项
+```ts
+// next.config.ts
+import type { NextConfig } from 'next';
+ 
+const nextConfig: NextConfig = {
+  experimental: {
+    ppr: 'incremental'
+  }
+};
+ 
+export default nextConfig;
+```
 
+`incremental`的值能让你适应PPR的特定路由。接着，将`experimental_ppr` 添加到dashboard layout上：
+```tsx
+// /app/dashboard/layout.tsx
+import SideNav from '@/app/ui/dashboard/sidenav';
+
+export const experimental_ppr = true;
+
+// ...
+```
+就是这样。在开发过程中，您可能看不到应用程序有什么不同，但在生产过程中，您应该会注意到性能的提高。Next.js将预先呈现路由中的静态部分，并延迟动态部分，直到用户请求它们。
+
+Partial Prerendering的好处在于，您不需要更改代码就可以使用它。只要你使用悬念来包装路由的动态部分，Next.js就会知道路由的哪些部分是静态的，哪些是动态的。
+
+我们相信PPR有潜力成为web应用程序的默认渲染模型，将静态站点和动态渲染的优点结合在一起。然而，它仍处于试验阶段。我们希望在未来稳定它，并使其成为Next.js的默认构建方式。
 
 
 
