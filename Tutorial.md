@@ -754,6 +754,16 @@ export async function fetchRevenue() {
     throw new Error('failed to fetch revenue data');
   }
 }
+```
+
+你会发现如下信息：
+```
+Fetching revenue data...
+Data fetch completed after 3 seconds.
+```
+在这里，您添加了一个人为的3秒延迟来模拟缓慢的数据获取。结果是，在获取数据时，整个页面都无法向访问者显示UI。这给我们带来了一个开发者必须解决的共同挑战：
+
+使用动态渲染，应用程序的速度取决于最慢的数据获取速度。
 
 
 
