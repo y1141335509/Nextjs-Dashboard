@@ -455,7 +455,9 @@ export default function NavLinks() {
 
 ![alt](./public/markdown-tutorial-images/ch06-05.png "示意图5")
 
+这时候，如果你再去到 Neon 中所对应的项目下面就会看到你刚刚新创建了几个table如下：
 
+![alt](./public/markdown-tutorial-images/ch06-06.png "示意图6")
 
 
 
