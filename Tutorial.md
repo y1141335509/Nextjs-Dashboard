@@ -1286,6 +1286,228 @@ export default async function Page() {
 3. Analytics and Tracking：在URL中直接使用搜索查询和过滤器可以更容易地跟踪用户行为，而不需要额外的客户端逻辑。
 
 
+### 添加Search 功能
+下面是Next.js client hooks。你将会使用它们来实现一个搜索功能：
+* `useSearchParams` - 可以让你访问当前URL参数。例如`/dashboard/invoices?page=1&query=pending`应该是这样的：`{Page: '1', query: 'pending'}`。
+* `usePathname` - 让您读取当前URL的路径名。例如，对于路由`/dashboard/invoices`，`usePathname`将返回`/dashboard/invoices`
+* `useRouter` - 以编程方式在客户端组件中的路由之间进行导航。这里是[多种你可以使用的方法](https://nextjs.org/docs/app/api-reference/functions/use-router#userouter)。
+
+具体的实现过程如下：
+1. 获取user input (Capture user's input)
+2. 用search params更新URL (Update the URL with the search params)
+3. 保证URL与input field的同步 (Keep the URL in sync with the input field)
+4. 更新table内容 来反映search的结果 (Update the table to reflect the search query)
+
+#### 1. capture the user's input
+在`/app/ui/search.tsx`的`<Search>`组件下，你会发现：
+* `"use client"` - 这是一个Client Component。意味着你可以使用event listeners和hooks
+* `<input>` - 是一个search input
+
+创建一个新的`handleSearch`函数，然后添加一个`onChange` listener到`<input>` element上。只要input value发生变动，`onChange`就会唤起`handleSearch`。如下：
+```tsx
+// /app/ui/search.tsx
+'use client';
+ 
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+ 
+export default function Search({ placeholder }: { placeholder: string }) {
+  function handleSearch(term: string) {
+    console.log(term);
+  }
+ 
+  return (
+    <div className="relative flex flex-1 flex-shrink-0">
+      <label htmlFor="search" className="sr-only">
+        Search
+      </label>
+      <input
+        className="peer block w-full rounded-md border border-gray-200 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500"
+        placeholder={placeholder}
+        onChange={(e) => {
+          handleSearch(e.target.value);
+        }}
+      />
+      <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
+    </div>
+  );
+}
+```
+
+#### 2. Update the URL with the saerch params
+从`next/navigation`中导入`useSearchParams` hook，然后assign给它一个变量：
+```tsx
+// /app/ui/search.tsx
+'use client';
+
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { useSearchParams } from 'next/navigation';
+
+export default function Seearch() {
+  const searchParams = useSearchParams();
+
+  function handleSearch(term: string) {
+    console.log(term);
+  }
+  // ...
+}
+```
+
+再接着我们将判断user input是否为空：
+```tsx
+// /app/ui/search.tsx
+'use client';
+ 
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { useSearchParams } from 'next/navigation';
+ 
+export default function Search() {
+  const searchParams = useSearchParams();
+ 
+  function handleSearch(term: string) {
+    const params = new URLSearchParams(searchParams);
+    if (term) {
+      params.set('query', term);
+    } else {
+      params.delete('query');
+    }
+  }
+  // ...
+}
+```
+
+接下来可以使用Next.js的`useRouter`和`usePathname` hooks来更新URL。如下：
+```tsx
+// /app/ui/search.tsx
+'use client';
+ 
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { useSearchParams, usePathname, useRouter } from 'next/navigation';
+ 
+export default function Search() {
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const { replace } = useRouter();
+ 
+  function handleSearch(term: string) {
+    const params = new URLSearchParams(searchParams);
+    if (term) {
+      params.set('query', term);
+    } else {
+      params.delete('query');
+    }
+    replace(`${pathname}?${params.toString()}`);
+  }
+}
+```
+上面代码中，
+* `${pathname}`是当前路径，也就是`"/dashboard/invoices"`
+* 当用户在搜索栏中打字搜索的时候, `params.toString()`会将输入信息翻译成URL-friendly的格式
+* `replace(${pathname}?${params.toString()})`会将URL更新 并使其带有用户搜索的信息数据。例如，如果用户搜索的是"Lee" ，那么会变成`/dashboard/invoices?query=lee`。
+* URL的更新并不会导致页面的重新加载。这归功于Next.js的 client端的navigation
+
+#### 3. Keeping the URL and input in sync
+为了确保输入字段与URL同步，并在共享时填充，您可以通过从`searchParams`中读取`defaultValue`来传递输入：
+```tsx
+// /app/ui/search.tsx
+<input
+  className="peer block w-full rounded-md border border-gray-200 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500"
+  placeholder={placeholder}
+  onChange={(e) => {
+    handleSearch(e.target.value);
+  }}
+  defaultValue={searchParams.get('query')?.toString()}
+/>
+```
+
+> `defaultValue` vs. `value` / Controlled vs. Uncontrolled 
+> 
+> 如果你使用的是 state 来管理 值的输入，你可以用`value`来确保它是一个受控制的组件 controlled component。这意味着React可以管理该 输入的state
+> 然而，由于你没在用state，你可以使用`defaultValue`。意味着native input会管理 state
+
+#### 4. Updating the table
+最后，你需要更新table组件来反应查询信息的更新
+Page组件接收一个名为 `searchParams`的prop，所以你可以将当前URL参数传给`<Table>`组件:
+```tsx
+// /app/dashboard/invoices/page/tsx
+
+import Pagination from '@/app/ui/invoices/pagination';
+import Search from '@/app/ui/search';
+import Table from '@/app/ui/invoices/table';
+import { CreateInvoice } from '@/app/ui/invoices/buttons';
+import { lusitana } from '@/app/ui/fonts';
+import { Suspense } from 'react';
+import { InvoicesTableSkeleton } from '@/app/ui/skeletons';
+ 
+export default async function Page(props: {
+  searchParams?: Promise<{
+    query?: string;
+    page?: string;
+  }>;
+}) {
+  const searchParams = await props.searchParams;
+  const query = searchParams?.query || '';
+  const currentPage = Number(searchParams?.page) || 1;
+ 
+  return (
+    <div className="w-full">
+      <div className="flex w-full items-center justify-between">
+        <h1 className={`${lusitana.className} text-2xl`}>Invoices</h1>
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-2 md:mt-8">
+        <Search placeholder="Search invoices..." />
+        <CreateInvoice />
+      </div>
+      <Suspense key={query + currentPage} fallback={<InvoicesTableSkeleton />}>
+        <Table query={query} currentPage={currentPage} />
+      </Suspense>
+      <div className="mt-5 flex w-full justify-center">
+        {/* <Pagination totalPages={totalPages} /> */}
+      </div>
+    </div>
+  );
+}
+```
+如果你查看`<Table>`组件，你会发现有两个props，`query`和`currentPage`。它俩被传给`fetchFilteredInvoices()`函数，该函数会将查询到的invoices返回。如下：
+```tsx
+// /app/ui/invoices/table.tsx
+export default async function InvoicesTable({
+  query,
+  currentPage,
+}: {
+  query: string;
+  currentPage: number;
+}) {
+  const invoices = await fetchFilteredInvoices(query, currentPage);
+  // ...
+}
+```
+
+改完后，再测试一下。如果你搜索某个信息，你会发现URL被更新了，这意味着会有一个新的请求被发送给server端，然后只有查询到的invoices会被返回。
+> 什么时候使用`useSearchParams()` hook vs. `searchParams` prop？
+> 
+> 你可能已经主要到了，我们使用了两种获取search param的方法。具体该用哪一个，取决于如下情况：
+> 
+> 1. `<Search>`是一个Client component，所以你使用`useSearchParams()` hook是从client端获取数据
+> 2. `<Table>`是一个Server component，意味着你可以将`searchParam` prop从页面传给 component。
+> 
+> 普遍来说，如果你想要从client端读取数据或者参数，就用`useSearchParams()`hook，因为这可以避免返回到server端。
+
+### Best practice: Debouncing
+到目前为止已经了解了Next.js的搜索机制。但我们仍可以进行如下优化：
+```tsx
+// /app/ui/search.tsx
+function handleSearch(term: string) {
+  console.log(`Searching ... ${term}`);
+
+  const params = new URLSearchParams(searchParams);
+  if (term) {
+    params.set('query', term);
+  } else  {
+    params.delete('query');
+  }
+  replace(`${pathname}?${params.toString()}`);
+}
+```
 
 
 
