@@ -1508,8 +1508,57 @@ function handleSearch(term: string) {
   replace(`${pathname}?${params.toString()}`);
 }
 ```
+在搜索栏中搜索“Delba“的话你会发现Chrome 的console栏中出现下面的信息：
+```dev tools console
+Searching... D
+Searching... De
+Searching... Del
+Searching... Delb
+Searching... Delba
+```
+这说明你没输入一个字母就更新一次，每次都会对数据库进行一次查询。当App体量小的时候没什么问题，但体量大了之后会导致数据库接收到太多查询。
 
+这时候就需要介绍**Debouncing**。这是一种编程方式，它能够有效的限制上述问题。具体来说就是当用户停止打字的时候才对数据库查询。
+> How Debouncing works:
+> 
+> 1. Trigger Event: 当一个需要进行Debouncing的事件发生的时候，触发一个计时器
+> 2. Wait:如果一个事件发生在计时器结束之前，重制计时器
+> 3. Execution: 如果计时器跑完了它的 countdown，那么就执行Debounced function
 
+有若干种方法来实现debouncing，比较简单常用的方法就是使用[`use-debounce`库](https://www.npmjs.com/package/use-debounce)
+安装命令是：
+```bash
+pnpm i use-debounce
+```
+
+在`<Search>`组件中，导入一个名为`useDebouncedCallback`的函数：
+```tsx
+// /app/ui/search.tsx
+// ...
+import { useDebouncedCallback } from 'use-debounce';
+
+// Inside the Search Component ...
+const handleSearch = useDebouncedCallback((term) => {
+  console.log(`Searching... ${term}`);
+
+  const params = new URLSearchParams(searchParams);
+  if (term) {
+    params.set('query', term);
+  } else {
+    params.delete('query');
+  }
+  replace(`${pathname}?${params.toString()}`);
+}, 300);
+```
+
+这里代码的含义就是当用户 停止打字输入300ms之后 才对数据库进行一次查询。
+
+现在如果你再去搜索栏搜索，你会发现
+```dev tools console
+Searching... Delba
+```
+
+### Adding Pagination
 
 
 
