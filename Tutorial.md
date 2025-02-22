@@ -1559,6 +1559,149 @@ Searching... Delba
 ```
 
 ### Adding Pagination
+在介绍完搜索功能之后，你会发现网页上的表格每次只显示了6个invoices。这是由于`data.ts`中的`fetchFilteredInvoices()`函数每次每页只能返回6个invoices。
+
+添加pagination功能就可以让用户在不同页面navigate。在`<Pagination />`组件中，你会发现这是一个Client Component。由于这会暴露数据库信息，所以你不需要从client端获取数据。相反，你可以从server端获取，并将它作为一个prop传给component
+
+在`/dashboard/invoices/page.tsx`中：
+```tsx
+// /app/dashboard/invoices/page.tsx
+// ...
+import { fetchInvoicesPages } from '@/app/lib/data';
+
+export default async function Page(
+  props: {
+    searchParams?: Promise<{
+      query?: string;
+      page?: string;
+    }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const query = searchParams?.query || '';
+  const currentPage = Number(searchParams?.page) || 1;
+  const totalPages = await fetchInvoicesPages(query);
+
+  return (
+    //...
+  )
+}
+```
+
+`fetchInvoicesPages`方法会基于query返回总页数。例如如果有12个invoices，总页码就是12/6=2
+
+然后：
+```tsx
+// /app/dashboard/invoices/page.tsx
+// ...
+ 
+export default async function Page(props: {
+  searchParams?: Promise<{
+    query?: string;
+    page?: string;
+  }>;
+}) {
+  const searchParams = await props.searchParams;
+  const query = searchParams?.query || '';
+  const currentPage = Number(searchParams?.page) || 1;
+  const totalPages = await fetchInvoicesPages(query);
+ 
+  return (
+    <div className="w-full">
+      <div className="flex w-full items-center justify-between">
+        <h1 className={`${lusitana.className} text-2xl`}>Invoices</h1>
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-2 md:mt-8">
+        <Search placeholder="Search invoices..." />
+        <CreateInvoice />
+      </div>
+      <Suspense key={query + currentPage} fallback={<InvoicesTableSkeleton />}>
+        <Table query={query} currentPage={currentPage} />
+      </Suspense>
+      <div className="mt-5 flex w-full justify-center">
+        <Pagination totalPages={totalPages} />
+      </div>
+    </div>
+  );
+}
+```
+
+在`<Pagination />`组件中导入`usePathname`和`useSearchParams`hooks：
+```tsx
+// /app/ui/invoices/pagination.tsx
+'use client';
+ 
+import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import clsx from 'clsx';
+import Link from 'next/link';
+import { generatePagination } from '@/app/lib/utils';
+import { usePathname, useSearchParams } from 'next/navigation';
+ 
+export default function Pagination({ totalPages }: { totalPages: number }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentPage = Number(searchParams.get('page')) || 1;
+ 
+  // ...
+}
+```
+
+然后在`<Pagination>`组件中创建一个`createPageURL`组件。类似的，我们还需要使用`URLSearchParams`来设置页码：
+```tsx
+// /app/ui/invoices/pagination.tsx
+'use client';
+ 
+import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import clsx from 'clsx';
+import Link from 'next/link';
+import { generatePagination } from '@/app/lib/utils';
+import { usePathname, useSearchParams } from 'next/navigation';
+ 
+export default function Pagination({ totalPages }: { totalPages: number }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentPage = Number(searchParams.get('page')) || 1;
+ 
+  const createPageURL = (pageNumber: number | string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', pageNumber.toString());
+    return `${pathname}?${params.toString()}`;
+  };
+ 
+  // ...
+}
+```
+对于上面代码：
+* `createPageURL`创建了一个当前搜索参数的instance
+* 然后它更新了“page”参数来提供页码
+* 最后，它通过pathname和新的搜索参数 构建了完整的URL
+
+剩余的`<Pagination>`组建的部分是用来处理格式和不同states的。我们不多赘述。最后，当用户输入一个新的搜索query，我们要将页码reset成1:
+```tsx
+// /app/ui/search.tsx
+'use client';
+ 
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useDebouncedCallback } from 'use-debounce';
+ 
+export default function Search({ placeholder }: { placeholder: string }) {
+  const searchParams = useSearchParams();
+  const { replace } = useRouter();
+  const pathname = usePathname();
+ 
+  const handleSearch = useDebouncedCallback((term) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', '1');
+    if (term) {
+      params.set('query', term);
+    } else {
+      params.delete('query');
+    }
+    replace(`${pathname}?${params.toString()}`);
+  }, 300);
+ ```
+ 
 
 
 
